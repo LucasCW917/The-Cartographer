@@ -1,7 +1,7 @@
 -- pathfinder.lua
 local Pathfinder = {}
 
--- Min-heap implementation
+-- Min-heap
 local function heapPush(heap, node)
     table.insert(heap, node)
     local i = #heap
@@ -10,27 +10,23 @@ local function heapPush(heap, node)
         if heap[parent].f > heap[i].f then
             heap[parent], heap[i] = heap[i], heap[parent]
             i = parent
-        else
-            break
-        end
+        else break end
     end
 end
 
 local function heapPop(heap)
-    local top = heap[1]
+    local top  = heap[1]
     local last = table.remove(heap)
     if #heap > 0 then
         heap[1] = last
         local i = 1
         while true do
-            local left  = i * 2
-            local right = i * 2 + 1
-            local smallest = i
-            if left  <= #heap and heap[left].f  < heap[smallest].f then smallest = left  end
-            if right <= #heap and heap[right].f < heap[smallest].f then smallest = right end
-            if smallest == i then break end
-            heap[i], heap[smallest] = heap[smallest], heap[i]
-            i = smallest
+            local l, r, s = i*2, i*2+1, i
+            if l <= #heap and heap[l].f < heap[s].f then s = l end
+            if r <= #heap and heap[r].f < heap[s].f then s = r end
+            if s == i then break end
+            heap[i], heap[s] = heap[s], heap[i]
+            i = s
         end
     end
     return top
@@ -42,7 +38,7 @@ end
 
 local function key(x, y) return x .. "," .. y end
 
-function Pathfinder.find(cave, startX, startY, goalX, goalY, maxNodes)
+local function astar(cave, startX, startY, goalX, goalY, maxNodes, costFn)
     maxNodes = maxNodes or 4000
 
     local open     = {}
@@ -62,7 +58,7 @@ function Pathfinder.find(cave, startX, startY, goalX, goalY, maxNodes)
 
         if closed[ck] then goto continue end
         closed[ck] = true
-        visited = visited + 1
+        visited    = visited + 1
 
         if current.x == goalX and current.y == goalY then
             local path = {}
@@ -86,13 +82,18 @@ function Pathfinder.find(cave, startX, startY, goalX, goalY, maxNodes)
         }
 
         for _, nb in ipairs(neighbors) do
-            local nk = key(nb.x, nb.y)
-            if not closed[nk] and cave:get(nb.x, nb.y) == cave.FLOOR then
-                local tentative = (gScore[ck] or math.huge) + 1
+            local nk   = key(nb.x, nb.y)
+            local cost = costFn(cave, nb.x, nb.y)
+            if not closed[nk] and cost < math.huge then
+                local tentative = (gScore[ck] or math.huge) + cost
                 if tentative < (gScore[nk] or math.huge) then
-                    gScore[nk]   = tentative
-                    cameFrom[nk] = { x=current.x, y=current.y }
-                    heapPush(open, { x=nb.x, y=nb.y, f=tentative + heuristic(nb.x, nb.y, goalX, goalY) })
+                    gScore[nk]    = tentative
+                    cameFrom[nk]  = { x=current.x, y=current.y }
+                    heapPush(open, {
+                        x = nb.x,
+                        y = nb.y,
+                        f = tentative + heuristic(nb.x, nb.y, goalX, goalY)
+                    })
                 end
             end
         end
@@ -101,6 +102,30 @@ function Pathfinder.find(cave, startX, startY, goalX, goalY, maxNodes)
     end
 
     return nil
+end
+
+-- Standard pathfinding: floor only
+local function floorCost(cave, x, y)
+    if cave:get(x, y) == cave.FLOOR then return 1 end
+    return math.huge  -- impassable
+end
+
+-- Diggable pathfinding: floor = 1, solid = 20 (expensive but passable)
+local function diggableCost(cave, x, y)
+    local t = cave:get(x, y)
+    if t == cave.FLOOR  then return 1  end
+    if t == cave.SOLID  then return 20 end
+    return math.huge
+end
+
+function Pathfinder.find(cave, startX, startY, goalX, goalY, maxNodes)
+    return astar(cave, startX, startY, goalX, goalY, maxNodes, floorCost)
+end
+
+function Pathfinder.findDiggable(cave, startX, startY, goalX, goalY, maxNodes)
+    -- For infinite caves, cap nodes higher since the cave may be sparse
+    maxNodes = maxNodes or 8000
+    return astar(cave, startX, startY, goalX, goalY, maxNodes, diggableCost)
 end
 
 return Pathfinder
