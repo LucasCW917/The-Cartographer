@@ -75,6 +75,32 @@ function Probe.new(id, probeType, weapon, x, y, cave)
 end
 
 function Probe:setTarget(tx, ty)
+    -- Snap to nearest floor tile if target is solid
+    if self.cave:get(tx, ty) ~= self.cave.FLOOR then
+        local best, bestDist = nil, math.huge
+        for r = 1, 8 do
+            for dy = -r, r do
+                for dx = -r, r do
+                    local nx, ny = tx+dx, ty+dy
+                    if self.cave:get(nx, ny) == self.cave.FLOOR then
+                        local dist = dx*dx + dy*dy
+                        if dist < bestDist then
+                            best     = { x=nx, y=ny }
+                            bestDist = dist
+                        end
+                    end
+                end
+            end
+            if best then break end
+        end
+        if not best then
+            self:addLog("No reachable floor near target.")
+            self.status = "idle"
+            return
+        end
+        tx, ty = best.x, best.y
+    end
+
     self.targetX   = tx
     self.targetY   = ty
     self.path      = Pathfinder.find(self.cave, math.floor(self.x), math.floor(self.y), tx, ty)

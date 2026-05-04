@@ -43,6 +43,21 @@ function Cave:_carve(x, y, radius)
     end
 end
 
+function Cave:nearestFloor(x, y)
+    if self:get(x, y) == TILE_FLOOR then return x, y end
+    for r = 1, 20 do
+        for dy = -r, r do
+            for dx = -r, r do
+                local nx, ny = x+dx, y+dy
+                if self:get(nx, ny) == TILE_FLOOR then
+                    return nx, ny
+                end
+            end
+        end
+    end
+    return x, y  -- fallback
+end
+
 function Cave:_drunkWalk()
     local cx = math.floor(self.width  / 2)
     local cy = math.floor(self.height / 2)
@@ -94,6 +109,15 @@ function Cave:_drunkWalk()
     -- Record start position
     self.startX = cx
     self.startY = cy
+    for dy = -2, 2 do
+        for dx = -2, 2 do
+            local nx = self.startX + dx
+            local ny = self.startY + dy
+            if nx >= 1 and nx <= self.width and ny >= 1 and ny <= self.height then
+                self.tiles[ny][nx] = TILE_FLOOR
+            end
+        end
+    end
 end
 
 function Cave:_smooth(passes)

@@ -265,8 +265,13 @@ function startGame()
     currentRenderer       = Renderer.new(currentCave)
     currentRenderer.viewW = W - SIDEBAR_W
 
-    currentDepot = Depot.new(currentCave.startX, currentCave.startY)
+    local sx, sy = currentCave:nearestFloor(currentCave.startX, currentCave.startY)
+    currentDepot = Depot.new(sx, sy)
+    currentCave:reveal(sx, sy, 5)
     currentPanel = Panel.new(W - SIDEBAR_W, 0, SIDEBAR_W, H, buttonFont)
+
+    currentRenderer.camX = sx
+    currentRenderer.camY = sy
 
     scene = "game"
     print("Name:", setup.name.value, "Seed:", seed, "Difficulty:", setup.difficulty)
